@@ -16,7 +16,7 @@ import notificationRoutes from "./routes/notification.route.js";
 dotenv.config();
 
 const app = express();
-app.use(cors({origin: "http://localhost:3000", credentials: false}));
+app.use(cors({origin: process.env.CLIENT_URL, credentials: false}));
 app.use(express.json());
 app.use(cookieParser());
 
