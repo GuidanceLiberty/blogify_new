@@ -10,13 +10,14 @@ import multer from 'multer';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import notificationRoutes from "./routes/notification.route.js";
 
 dotenv.config();
 
 const app = express();
-
+app.use(cors({origin: "http://localhost:3000", credentials: false}));
 app.use(express.json());
-
 app.use(cookieParser());
 
 app.use('/api/auth', authRoute);
@@ -24,19 +25,20 @@ app.use('/api/categories', categoryRoute);
 app.use('/api/tag', tagRoute);
 app.use('/api/posts', postRoute)
 app.use('/api/comments', commentRoute)
+app.use('/api/notifications', notificationRoutes);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname =  path.dirname(__filename);
 //STORAGE ENGIN
 const storage = multer.diskStorage({
-    destination: path.join(__dirname, 'upload'),
+    destination: path.join(__dirname, 'uploads'),
     limits: { fileSize: 2 * 1024 * 1024}, //2mb
     filename: (req, file, cb) => {cb(null, `${file.originalname}`);},
 });
 
 const upload = multer({ storage });
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post(`/api/upload`, upload.single('file'), (req, res) => {
     if(!req.file){
     return res.status(400).json({error: 'No file uploaded', path: req.file.path});
     }

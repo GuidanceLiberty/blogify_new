@@ -1,85 +1,168 @@
-import {ObjectId} from 'mongodb';
-import url from 'url'
+import url from 'url';
+import mongoose from 'mongoose';
 import { Comment } from '../models/Comment.js';
 import { Post } from '../models/Post.js';
 import { User } from '../models/User.js';
+import { Notification } from '../models/Notification.js';
 
-export const getComments = async(req, res) => {
-    const parseUrl = url.parse(req.url)
-    const query = parseUrl.query;
-    const postId = req.params.post_id;
-    const post_id = new ObjectId(postId);
+const { ObjectId } = mongoose.Types;
 
-    try {
-        let limit = query.limit;
-        if(limit = undefined){ limit = 50 }
+// ------------------ Get Comments ------------------
+export const getComments = async (req, res) => {
+  const { post_id } = req.params;
+  const queryObject = url.parse(req.url, true).query;
+  const limit = parseInt(queryObject.limit) || 100;
 
-        const comments = await Comment.find( { postId })
-        .populate({
-            path: "author",
-            model: User,
-            select: '_id name email photo'
+  try {
+    const allComments = await Comment.find({ postId: new ObjectId(post_id) })
+      .populate({
+        path: "author",
+        model: User,
+        select: "_id name email photo",
+      })
+      .sort({ createdAt: 1 })
+      .exec();
 
-        })
-        
-        .sort({ createdAt: 'desc' })
-        .limit(limit)
-        .exec();
+    if (!allComments || allComments.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No comments found",
+        comments: [],
+      });
+    }
 
-        if(!comments){
-            return res.status(400).json({
-                success: false, message: "No comments found on post"
-            })
+    const groupedComments = [];
+    const repliesMap = {};
+    const commentById = {};
 
-        }
-        res.status(200).json({
-            success: true, message: 'post created successfully', comments
-        })
-    } catch (error) {
-        return res.status(400).json({
-            success: false, message: error.message
+    for (const comment of allComments) {
+      const c = comment.toObject();
+      commentById[c._id] = c;
+
+      if (c.parentCommentId) {
+        const parentId = c.parentCommentId.toString();
+        if (!repliesMap[parentId]) repliesMap[parentId] = [];
+
+        const parentComment = allComments.find(p => p._id.toString() === parentId);
+        const parentAuthorName = parentComment?.author?.name || "Unknown";
+        c.parentAuthorName = parentAuthorName;
+
+        repliesMap[parentId].push(c);
+      } else {
+        groupedComments.push({ ...c, replies: [] });
+      }
+    }
+
+    for (let comment of groupedComments) {
+      const commentId = comment._id.toString();
+      if (repliesMap[commentId]) {
+        comment.replies = repliesMap[commentId];
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Comments retrieved successfully",
+      comments: groupedComments,
+    });
+
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve comments",
+      error: error.message,
+    });
+  }
+};
+
+// ------------------ Add Comment / Reply ------------------
+export const addComment = async (req, res) => {
+  const { comment, user_id, post_id, parentCommentId } = req.body;
+
+  try {
+    if (!comment || !user_id || !post_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    const post = await Post.findById(post_id).populate("author");
+    const user = await User.findById(user_id);
+    if (!post || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "Post or User not found",
+      });
+    }
+
+    const newComment = await Comment.create({
+      comment,
+      postId: post_id,
+      author: user_id,
+      parentCommentId: parentCommentId || null,
+    });
+
+    if (!parentCommentId) {
+      post.comments.unshift(newComment._id);
+      await post.save();
+    }
+
+    await User.findByIdAndUpdate(user_id, {
+      $inc: { noOfComments: 1 },
+      $set: { lastCommentDate: new Date() },
+    });
+
+    // ----------- Notification Logic -----------
+
+    const notificationBase = {
+      sender: user._id,
+      postId: post._id,
+      commentId: newComment._id,
+      slug: post.slug,
+      read: false,
+    };
+
+    // Notify the post author
+    if (post.author._id.toString() !== user_id) {
+      await Notification.create({
+        ...notificationBase,
+        recipient: post.author._id,
+        type: parentCommentId ? "reply" : "comment",
+        message: `${user.name} ${parentCommentId ? "replied to a comment" : "commented on your post"}.`,
+      });
+    }
+
+    // Notify the parent comment's author if it's a reply AND it's not the post author or same person
+    if (parentCommentId) {
+      const parentComment = await Comment.findById(parentCommentId).populate("author");
+      if (
+        parentComment &&
+        parentComment.author._id.toString() !== user_id &&
+        parentComment.author._id.toString() !== post.author._id.toString()
+      ) {
+        await Notification.create({
+          ...notificationBase,
+          recipient: parentComment.author._id,
+          type: "reply",
+          message: `${user.name} replied to your comment.`,
         });
+      }
     }
-}
 
+    return res.status(200).json({
+      success: true,
+      message: parentCommentId ? "Reply posted successfully" : "Comment posted successfully",
+      data: newComment,
+    });
 
-export const addComment = async(req, res) => {
-    const { content, user_id, post_id } = req.body;
-    const userId = new ObjectId(user_id);
-    const postId = new ObjectId(post_id);
-
-    //return console.log("post_id ", post_id)
-    try {
-        const post = await Post.findById(postId);
-        if(!post){
-            return res.status(400).json({
-                success: false, message: "Post not found"
-            })
-        }
-
-        const post_comment = await Comment.create({
-             postId, content, author: user_id }
-        );
-
-        if(post_comment){
-            const updatePost = await post.updateOne(
-                { $push: { comments: { $each: [post_comment._id], $position: 0 }}}
-            );
-
-            if(updatePost){
-                res.status(200).json({
-                    success: true, message: "Comment posted successfully"
-                });
-            }else{
-              res.status(400).json({
-                    success: true, message: " Failed to add Comment to post!"
-                });  
-            }
-        }
-
-    } catch (error) {
-        return res.status(400).json({
-                success: false, message: error.message
-            });
-    }
-}
+  } catch (error) {
+    console.error("Error in addComment:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to post comment",
+      error: error.message,
+    });
+  }
+};
