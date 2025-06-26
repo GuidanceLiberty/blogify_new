@@ -35,7 +35,9 @@ const Register = () => {
                 toast.success(res.message);
                 await new Promise((resolve) => setTimeout(resolve, 3000));
                 actions.resetForm();
-                return navigate(`/verify-email`);
+                // ✅ Redirect to Login instead of email verification
+                return navigate(`/login`);
+                // return navigate(`/verify-email`);
             }
             else{
                 toast.error(res.message);
