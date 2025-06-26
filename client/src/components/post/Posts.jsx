@@ -1,55 +1,69 @@
 import React from "react";
-import { FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import PostCard from "./PostCard";
-import PostCardSkeleton from "./PostCardSkeleton";
+import { useAuthContext } from "../../context/AuthContext";
 import useSWR from "swr";
+import axios from "axios";
 
-const Posts = ({ limit, results }) => {
-  const BASE_URL = process.env.REACT_APP_BASE_URL;
+const fetcher = async (url, token) => {
+  const res = await axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    withCredentials: true,
+  });
+  return res.data;
+};
 
-  let user = localStorage.getItem('user');
-  user = user ? JSON.parse(user) : null;
+const Posts = ({ results }) => {
+  const { user } = useAuthContext();
 
-  const fetcher = (...args) =>
-    fetch(...args, {
-      headers: user ? { Authorization: `Bearer ${user.token}` } : {},
-    }).then((res) => res.json());
-
-  const { data, mutate, error, isLoading } = useSWR(
-    `${BASE_URL}/posts?limit=${limit}`,
-    fetcher
+  const {
+    data,
+    error,
+    isLoading,
+  } = useSWR(
+    user?.token ? [`${process.env.REACT_APP_BASE_URL}/posts`, user.token] : null,
+    ([url, token]) => fetcher(url, token)
   );
 
-  const posts = data?.posts || [];
+  const posts = data?.posts || results || [];
+
+  if (isLoading) {
+    return <div className="text-center py-10 text-xl">Loading posts...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-10 text-red-500">Failed to load posts</div>;
+  }
 
   return (
-    <section className="flex flex-col container mx-auto px-5 py-10">
-      <div className="flex flex-wrap md:gap-x-5 gap-y-5 pb-10">
-        {isLoading ? (
-          [...Array(3)].map((_, index) => (
-            <PostCardSkeleton
-              key={index}
-              className="w-full md:w-[calc(50%-20px)] lg:w-[calc(33.33%-21px)]"
-            />
-          ))
-        ) : (results?.length > 0 ? results : posts).map((post) => (
-          <PostCard
-            key={post._id}
-            post={post}
-            mutate={mutate}
-            className="w-full md:w-[calc(50%-20px)] lg:w-[calc(33.33%-21px)]"
-          />
-        ))}
-      </div>
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4 py-8">
+      {posts.length > 0 ? (
+        posts.map((post) => {
+          const imageUrl = post.photo?.startsWith("http")
+            ? post.photo
+            : `${process.env.REACT_APP_UPLOAD_URL}${post.photo}`;
 
-      <Link
-        to="/blog"
-        className="mx-auto flex items-center gap-x-2 font-bold text-red-800 border-[1px] border-red-400 px-6 py-2 rounded-lg"
-      >
-        <span>More Posts</span>
-        <FaArrowRight className="w-3 h-3 text-red-600" />
-      </Link>
+          return (
+            <div key={post._id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col justify-between transition hover:shadow-xl">
+              <Link to={`/post/${post.slug}`}>
+                <img
+                  src={imageUrl}
+                  alt={post.title}
+                  className="w-full h-48 object-cover rounded-xl mb-4"
+                  loading="lazy"
+                />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  {post.title}
+                </h2>
+                <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">
+                  {post.body.length > 100 ? post.body.slice(0, 100) + "..." : post.body}
+                </p>
+              </Link>
+            </div>
+          );
+        })
+      ) : (
+        <p className="text-center col-span-full text-gray-500">No posts found</p>
+      )}
     </section>
   );
 };
