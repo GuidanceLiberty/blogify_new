@@ -34,7 +34,7 @@ export const getPosts = async (req, res) => {
 export const createPost = async (req, res) => {
   const { title, body, categories, photo, author } = req.body;
   const slug = title.toLowerCase().replace(/\s+/g, "-");
-  const image = photo?.length > 12 ? photo.substring(12) : null;
+  const image = photo?.startsWith("/uploads/") ? photo.replace("/uploads/", "") : photo;
 
   const { error } = postSchema.validate({ title, slug, body, categories, author });
   if (error) {
@@ -129,7 +129,7 @@ export const updatePost = async (req, res) => {
 
   const slug = title.toLowerCase().replace(/\s+/g, "-");
   const cate_id = new ObjectId(categories);
-  const image = photo?.length > 12 ? photo.substring(12) : null;
+  const image = photo?.startsWith("/uploads/") ? photo.replace("/uploads/", "") : photo;
 
   const { error } = postSchema.validate({ title, slug, body, categories, author });
   if (error) {

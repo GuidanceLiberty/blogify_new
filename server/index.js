@@ -16,58 +16,51 @@ import cors from 'cors';
 dotenv.config();
 const app = express();
 
-// ✅ Enable CORS for frontend domain
+// ✅ Allow frontend origins
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:3000',
   'https://blogify-frontend-5flp.onrender.com'
 ];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
 }));
 
-// ✅ Parse JSON + cookies
+// ✅ Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Serve frontend static files like logo192.png if needed (optional)
-app.use(express.static(path.join(path.resolve(), 'public')));
-
-// ✅ Test route
-app.get('/', (req, res) => {
-  res.send('✅ API is working');
-});
-
-// ✅ API Routes
-app.use('/api/auth', authRoute);
-app.use('/api/categories', categoryRoute);
-app.use('/api/tag', tagRoute);
-app.use('/api/posts', postRoute);
-app.use('/api/comments', commentRoute);
-app.use('/api/notifications', notificationRoutes);
-
-// ✅ File upload setup
+// ✅ Resolve path for uploads & public
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ✅ Static folders
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ✅ Uploads config (max 2MB)
 const storage = multer.diskStorage({
   destination: path.join(__dirname, 'uploads'),
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
 });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded' });
   }
-
   return res.status(200).json({
     success: true,
     message: 'File uploaded successfully',
@@ -75,10 +68,20 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   });
 });
 
-// ✅ Serve uploaded images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// ✅ API routes
+app.use('/api/auth', authRoute);
+app.use('/api/categories', categoryRoute);
+app.use('/api/tag', tagRoute);
+app.use('/api/posts', postRoute);
+app.use('/api/comments', commentRoute);
+app.use('/api/notifications', notificationRoutes);
 
-// ✅ Error handler for large files
+// ✅ Health check route
+app.get('/', (req, res) => {
+  res.send('✅ API is working');
+});
+
+// ✅ Error handler for large uploads
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
@@ -90,8 +93,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start server after DB connection
-const port = process.env.PORT || 6000;
-
+const port = process.env.PORT || 9000;
 const startServer = async () => {
   try {
     await connectDB();
