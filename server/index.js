@@ -5,61 +5,86 @@ import categoryRoute from './routes/category.route.js';
 import postRoute from './routes/post.route.js';
 import commentRoute from './routes/comments.route.js';
 import tagRoute from './routes/tag.route.js';
+import notificationRoutes from "./routes/notification.route.js";
 import connectDB from './db/connectDB.js';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import notificationRoutes from "./routes/notification.route.js";
 
 dotenv.config();
-
 const app = express();
-app.use(cors({origin: process.env.CLIENT_URL, credentials: false}));
+
+// Middleware
+app.use(cors({ origin: process.env.CLIENT_URL || "*", credentials: false }));
 app.use(express.json());
 app.use(cookieParser());
 
+// ✅ Root route for Render test
+app.get('/', (req, res) => {
+  res.send('✅ API is working');
+});
+
+// Routes
 app.use('/api/auth', authRoute);
 app.use('/api/categories', categoryRoute);
 app.use('/api/tag', tagRoute);
-app.use('/api/posts', postRoute)
-app.use('/api/comments', commentRoute)
+app.use('/api/posts', postRoute);
+app.use('/api/comments', commentRoute);
 app.use('/api/notifications', notificationRoutes);
 
+// File upload setup
 const __filename = fileURLToPath(import.meta.url);
-const __dirname =  path.dirname(__filename);
-//STORAGE ENGIN
+const __dirname = path.dirname(__filename);
+
 const storage = multer.diskStorage({
-    destination: path.join(__dirname, 'uploads'),
-    limits: { fileSize: 2 * 1024 * 1024}, //2mb
-    filename: (req, file, cb) => {cb(null, `${file.originalname}`);},
+  destination: path.join(__dirname, 'uploads'),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  filename: (req, file, cb) => {
+    cb(null, `${file.originalname}`);
+  },
 });
 
 const upload = multer({ storage });
 
 app.post(`/api/upload`, upload.single('file'), (req, res) => {
-    if(!req.file){
-    return res.status(400).json({error: 'No file uploaded', path: req.file.path});
-    }
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
 
-    return res.json({message: 'File was uploaded', path: req.file.path});
+  return res.json({ message: 'File uploaded', path: req.file.path });
 });
 
-app.use((err, req, res, next) => {
-    if(err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({
-            success: false, message: "File too large, Max size set at 2mb"
-        });
-    }
-
-    next();
-});
-
+// Static route for uploaded files
 app.use(`/uploads`, express.static(path.join(__dirname, 'uploads')));
 
+// Error handler for large files
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      message: "File too large. Max size is 2MB",
+    });
+  }
+  next();
+});
+
+// Start server after DB connects
 const port = process.env.PORT || 6000;
-app.listen(port, () => {
-    connectDB();
-    console.log(`server running on port http://localhost:${port}`);
-})
+
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log("✅ MongoDB connected");
+
+    app.listen(port, () => {
+      console.log(`🚀 Server running at http://localhost:${port}`);
+    });
+  } catch (err) {
+    console.error("❌ Failed to connect to MongoDB:", err.message);
+    process.exit(1);
+  }
+};
+
+startServer();
