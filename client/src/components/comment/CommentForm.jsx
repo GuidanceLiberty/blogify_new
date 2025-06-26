@@ -6,8 +6,10 @@ const CommentForm = ({ handleComment, parentCommentId = null, replyingToName = n
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
-    handleComment(commentText, parentCommentId);
+    const trimmed = commentText.trim();
+    if (!trimmed) return;
+
+    handleComment(trimmed, parentCommentId);
     setCommentText('');
   };
 
@@ -15,9 +17,9 @@ const CommentForm = ({ handleComment, parentCommentId = null, replyingToName = n
     <section className="w-full my-6">
       <form onSubmit={handleSubmit} className="flex flex-col w-full">
         <label htmlFor="comment" className="label justify-between">
-          <div className="label !text-lg">
+          <div className="label !text-lg flex items-center gap-1">
             <FaComment />
-            {parentCommentId ? " Reply" : " Comment"}
+            {parentCommentId ? "Reply" : "Comment"}
           </div>
           <button type="submit" className="btn-purple-full">
             {parentCommentId ? "Post Reply" : "Post Comment"}

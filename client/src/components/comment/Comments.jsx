@@ -29,8 +29,9 @@ const Comments = ({ comments = [], onAddReply }) => {
         return (
           <div
             key={comment._id}
-            id={comment._id} // ✅ Allows scrollIntoView to target this comment
-            className={`mb-4 pl-${Math.min(level * 6, 24)} border-l-2 border-gray-200`}
+            id={comment._id}
+            className={`mb-4 border-l-2 border-gray-200`}
+            style={{ paddingLeft: `${Math.min(level * 24, 96)}px` }}
           >
             <div className="comment-div">
               <div className="comment-user-info">
@@ -56,7 +57,10 @@ const Comments = ({ comments = [], onAddReply }) => {
               {/* "Replying to X" display if this is a reply */}
               {comment?.parentCommentId && comment?.parentAuthorName && (
                 <div className="text-xs text-gray-500 mb-1 italic">
-                  Replying to <span className="font-semibold text-purple-700">{comment.parentAuthorName}</span>
+                  Replying to{" "}
+                  <span className="font-semibold text-purple-700">
+                    {comment.parentAuthorName}
+                  </span>
                 </div>
               )}
 
