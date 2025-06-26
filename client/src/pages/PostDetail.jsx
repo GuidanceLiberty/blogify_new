@@ -90,15 +90,7 @@ const PostDetail = () => {
   };
 
   const commentOnPost = async (text, parentCommentId = null) => {
-    if (!user_id || !post_id) {
-      toast.error("Unable to comment: user or post not found.");
-      return;
-    }
-
     try {
-      console.log("POST ID:", post_id);
-      console.log("USER ID:", user_id);
-
       const commentInfo = {
         comment: text,
         post_id,
@@ -116,16 +108,18 @@ const PostDetail = () => {
       });
 
       const res = await response.json();
+
       if (res.success) {
         toast.success(res.message);
         setCommentText('');
-        post_mutate();
-        comments_mutate();
+        await comments_mutate();
+        await post_mutate();
         const userProfileKey = `${URL}/auth/profile/${user_id}`;
         await mutate(userProfileKey);
       } else {
         toast.error(res.message);
       }
+
     } catch (err) {
       toast.error("Error occurred while commenting");
       console.error(err);
@@ -201,7 +195,10 @@ const PostDetail = () => {
 
                 <div className="flex items-center gap-0.5 text-sm">
                   <FaCalendarAlt />
-                  {new Date(post?.data?.createdAt).getDate()} {new Date(post?.data?.createdAt).toLocaleString("default", { month: "long" })}
+                  {new Date(post?.data?.createdAt).getDate()}{" "}
+                  {new Date(post?.data?.createdAt).toLocaleString("default", {
+                    month: "long",
+                  })}
                 </div>
               </div>
             </div>
@@ -210,7 +207,10 @@ const PostDetail = () => {
               {post?.data?.title}
               <div className="flex items-center gap-1.5 text-dark-light">
                 <FaCubes size={17} />
-                <Link to={`/blog?category=${post?.data?.categories?.name}`} className="text-sm font-roboto inline-block md:text-base">
+                <Link
+                  to={`/blog?category=${post?.data?.categories?.name}`}
+                  className="text-sm font-roboto inline-block md:text-base"
+                >
                   {post?.data?.categories?.name}
                 </Link>
               </div>
@@ -222,7 +222,10 @@ const PostDetail = () => {
 
             <CommentForm handleComment={handleTopLevelComment} />
 
-            <Comments comments={comments?.comments || []} onAddReply={commentOnPost} />
+            <Comments
+              comments={comments?.comments || []}
+              onAddReply={commentOnPost}
+            />
           </article>
 
           <div>
