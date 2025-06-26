@@ -12,9 +12,13 @@ const PostCard = ({ post, mutate, className }) => {
   const user_id = user?._id;
   const post_id = post?._id;
 
-  const URL = process.env.REACT_APP_BASE_URL;
-  const imgURL = process.env.REACT_APP_UPLOAD_URL;
-  const imgPath = post?.photo ? imgURL + post.photo : samplePostImage;
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
+  const UPLOAD_URL = process.env.REACT_APP_UPLOAD_URL;
+
+  // ✅ Ensure no double slashes
+  const imgPath = post?.photo
+    ? `${UPLOAD_URL.replace(/\/$/, '')}/${post.photo.replace(/^\//, '')}`
+    : samplePostImage;
 
   const handleLikeUnlikePost = () => {
     if (!user) {
@@ -30,7 +34,7 @@ const PostCard = ({ post, mutate, className }) => {
 
   const likeOrUnlike = async () => {
     try {
-      const res = await fetch(`${URL}/posts/like-and-unlike-post`, {
+      const res = await fetch(`${BASE_URL}/posts/like-and-unlike-post`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,7 +45,7 @@ const PostCard = ({ post, mutate, className }) => {
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
-        mutate();
+        mutate(); // refetch posts
       } else {
         toast.error(data.message);
       }
@@ -93,7 +97,7 @@ const PostCard = ({ post, mutate, className }) => {
           <div className="flex items-center gap-x-2">
             {post?.author?.photo ? (
               <img
-                src={imgURL + post.author.photo}
+                src={`${UPLOAD_URL.replace(/\/$/, '')}/${post.author.photo.replace(/^\//, '')}`}
                 alt="profile"
                 className="w-5 h-5 md:w-10 md:h-10 rounded-full"
               />
