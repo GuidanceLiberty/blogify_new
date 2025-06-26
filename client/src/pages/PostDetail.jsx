@@ -90,7 +90,15 @@ const PostDetail = () => {
   };
 
   const commentOnPost = async (text, parentCommentId = null) => {
+    if (!user_id || !post_id) {
+      toast.error("Unable to comment: user or post not found.");
+      return;
+    }
+
     try {
+      console.log("POST ID:", post_id);
+      console.log("USER ID:", user_id);
+
       const commentInfo = {
         comment: text,
         post_id,
@@ -132,7 +140,6 @@ const PostDetail = () => {
     commentOnPost(text);
   };
 
-  // ✅ Scroll to comment by ID if present in query
   useEffect(() => {
     if (scrollToCommentId) {
       setTimeout(() => {
@@ -194,10 +201,7 @@ const PostDetail = () => {
 
                 <div className="flex items-center gap-0.5 text-sm">
                   <FaCalendarAlt />
-                  {new Date(post?.data?.createdAt).getDate()}{" "}
-                  {new Date(post?.data?.createdAt).toLocaleString("default", {
-                    month: "long",
-                  })}
+                  {new Date(post?.data?.createdAt).getDate()} {new Date(post?.data?.createdAt).toLocaleString("default", { month: "long" })}
                 </div>
               </div>
             </div>
@@ -206,10 +210,7 @@ const PostDetail = () => {
               {post?.data?.title}
               <div className="flex items-center gap-1.5 text-dark-light">
                 <FaCubes size={17} />
-                <Link
-                  to={`/blog?category=${post?.data?.categories?.name}`}
-                  className="text-sm font-roboto inline-block md:text-base"
-                >
+                <Link to={`/blog?category=${post?.data?.categories?.name}`} className="text-sm font-roboto inline-block md:text-base">
                   {post?.data?.categories?.name}
                 </Link>
               </div>
@@ -219,14 +220,9 @@ const PostDetail = () => {
               {!post_isLoading && post?.data?.body}
             </div>
 
-            {/* ✅ Top-level comment form */}
             <CommentForm handleComment={handleTopLevelComment} />
 
-            {/* ✅ Nested replies */}
-            <Comments
-              comments={comments?.comments || []}
-              onAddReply={commentOnPost}
-            />
+            <Comments comments={comments?.comments || []} onAddReply={commentOnPost} />
           </article>
 
           <div>
