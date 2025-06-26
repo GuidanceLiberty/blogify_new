@@ -3,13 +3,13 @@ import samplePostImage from '../../assets/images/sample.jpg';
 import { Link, NavLink } from "react-router-dom";
 import { FaCommentAlt, FaHeart, FaUserTie } from "react-icons/fa";
 import toast from "react-hot-toast";
-import { format } from 'timeago.js'; // ✅ imported here
+import { format } from 'timeago.js';
 
 const PostCard = ({ post, mutate, className }) => { 
 
   const userInfo = localStorage.getItem('user');
-  const user = JSON.parse(userInfo);
-  
+  const user = userInfo ? JSON.parse(userInfo) : null;
+
   const user_id = user?._id;
   const post_id = post?._id;
 
@@ -18,11 +18,16 @@ const PostCard = ({ post, mutate, className }) => {
   const imgPath = imgURL + post?.photo;  
 
   const handleLikeUnlikePost = () => {
-    let answer = window.confirm('Are you sure you want to like / unlike post ?');
-    if (answer) LikeUnlikePost();
-  }
+    if (!user) {
+      toast.error("Login required to like/unlike a post");
+      return;
+    }
 
-  const likeDetail = { user_id, post_id }
+    let answer = window.confirm('Are you sure you want to like / unlike this post?');
+    if (answer) LikeUnlikePost();
+  };
+
+  const likeDetail = { user_id, post_id };
 
   const LikeUnlikePost = async () => {
     try {  
@@ -37,15 +42,15 @@ const PostCard = ({ post, mutate, className }) => {
       const res = await response.json();
       if (res.success) {
         mutate();
-        toast.success(res?.message);
+        toast.success(res.message);
       } else {
         toast.error(res.message);
       }
     } catch (err) {
-      toast.error("Error occurred while liking post ");
-      console.log("Error occurred while liking post ", err); 
+      toast.error("Error occurred while liking the post");
+      console.log("Like error:", err); 
     }
-  }
+  };
 
   return (
     <div className={`rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all ease-in-out duration-[900ms] ${className}`}>
@@ -88,19 +93,18 @@ const PostCard = ({ post, mutate, className }) => {
           <div className="flex items-center gap-x-2 md:gap-x-2.5">
             {
               post?.author?.photo !== "" ?  
-              <img src={ post?.author?.photo ? imgURL + post.author?.photo : '' } alt="profile photo"
+              <img src={post?.author?.photo ? imgURL + post.author?.photo : ''} alt="profile"
                 className="w-5 h-5 md:w-10 md:h-10 rounded-full" /> :
               <FaUserTie className="text-red-600" />
             }
 
             <div className="flex flex-col">
-              <NavLink to={`/profile/${post.author._id}`} className="font-light italic text-dark-soft !text-sm md:text-base">
-                {post.author.name}
+              <NavLink to={`/profile/${post.author?._id}`} className="font-light italic text-dark-soft !text-sm md:text-base">
+                {post.author?.name}
               </NavLink>
             </div>
           </div>
 
-          {/* ✅ Updated to show time ago */}
           <span className="font-extralight text-dark-light !text-sm md:text-base flex items-center gap-1">
             <BsCalendar3 className="w-3 h-4" />
             {format(post.createdAt)}
