@@ -37,7 +37,9 @@ const PostDetail = () => {
   const { data: posts } = useSWR(`${URL}/posts?limit=3`, fetcher);
   const { data: comments, mutate: comments_mutate } = useSWR(`${URL}/comments/${post_id}?limit=1000`, fetcher);
 
-  const imgPath = post?.data?.photo ? UPLOAD_URL + post.data.photo : samplePostImage;
+  const imgPath = post?.data?.photo
+    ? `${UPLOAD_URL.replace(/\/$/, '')}/${post.data.photo}`
+    : samplePostImage;
 
   const gotoPostPage = () => navigate(`/`);
 
