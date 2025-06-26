@@ -16,17 +16,30 @@ import cors from 'cors';
 dotenv.config();
 const app = express();
 
-// Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || "*", credentials: false }));
+// ✅ Enable CORS for frontend domain
+const allowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:3000',
+  'https://blogify-frontend-5flp.onrender.com'
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
+// ✅ Parse JSON + cookies
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Root route for Render test
+// ✅ Serve frontend static files like logo192.png if needed (optional)
+app.use(express.static(path.join(path.resolve(), 'public')));
+
+// ✅ Test route
 app.get('/', (req, res) => {
   res.send('✅ API is working');
 });
 
-// Routes
+// ✅ API Routes
 app.use('/api/auth', authRoute);
 app.use('/api/categories', categoryRoute);
 app.use('/api/tag', tagRoute);
@@ -34,32 +47,38 @@ app.use('/api/posts', postRoute);
 app.use('/api/comments', commentRoute);
 app.use('/api/notifications', notificationRoutes);
 
-// File upload setup
+// ✅ File upload setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const storage = multer.diskStorage({
   destination: path.join(__dirname, 'uploads'),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   filename: (req, file, cb) => {
-    cb(null, `${file.originalname}`);
+    cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
 
-const upload = multer({ storage });
-
-app.post(`/api/upload`, upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  return res.json({ message: 'File uploaded', path: req.file.path });
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
 });
 
-// Static route for uploaded files
-app.use(`/uploads`, express.static(path.join(__dirname, 'uploads')));
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
 
-// Error handler for large files
+  return res.status(200).json({
+    success: true,
+    message: 'File uploaded successfully',
+    path: `/uploads/${req.file.filename}`,
+  });
+});
+
+// ✅ Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ✅ Error handler for large files
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
@@ -67,10 +86,10 @@ app.use((err, req, res, next) => {
       message: "File too large. Max size is 2MB",
     });
   }
-  next();
+  next(err);
 });
 
-// Start server after DB connects
+// ✅ Start server after DB connection
 const port = process.env.PORT || 6000;
 
 const startServer = async () => {
