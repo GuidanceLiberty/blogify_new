@@ -81,10 +81,19 @@ export const addComment = async (req, res) => {
   const { comment, user_id, post_id, parentCommentId } = req.body;
 
   try {
+    // 🔐 Validate required fields
     if (!comment || !user_id || !post_id) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
+      });
+    }
+
+    // ✅ Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(post_id) || !mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid post or user ID",
       });
     }
 
@@ -115,7 +124,6 @@ export const addComment = async (req, res) => {
     });
 
     // ----------- Notification Logic -----------
-
     const notificationBase = {
       sender: user._id,
       postId: post._id,
@@ -124,7 +132,7 @@ export const addComment = async (req, res) => {
       read: false,
     };
 
-    // Notify the post author
+    // Notify post author
     if (post.author._id.toString() !== user_id) {
       await Notification.create({
         ...notificationBase,
@@ -134,7 +142,7 @@ export const addComment = async (req, res) => {
       });
     }
 
-    // Notify the parent comment's author if it's a reply AND it's not the post author or same person
+    // Notify parent comment author (if replying)
     if (parentCommentId) {
       const parentComment = await Comment.findById(parentCommentId).populate("author");
       if (
