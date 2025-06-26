@@ -30,7 +30,7 @@ const PostDetail = () => {
 
   const fetcher = (...args) =>
     fetch(...args, {
-      headers: { Authorization: `Bearer ${user.token}` },
+      headers: { Authorization: `Bearer ${user?.token}` },
     }).then((res) => res.json());
 
   const { data: post, mutate: post_mutate, isLoading: post_isLoading } = useSWR(`${URL}/posts/${slug}`, fetcher);
@@ -102,27 +102,33 @@ const PostDetail = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          'Authorization': `Bearer ${user?.token}`
         },
         body: JSON.stringify(commentInfo),
       });
+
+      if (!response.ok) {
+        const errorRes = await response.json();
+        toast.error(errorRes.message || 'Failed to post comment');
+        return;
+      }
 
       const res = await response.json();
 
       if (res.success) {
         toast.success(res.message);
         setCommentText('');
-        await comments_mutate();
-        await post_mutate();
+        post_mutate();
+        comments_mutate();
         const userProfileKey = `${URL}/auth/profile/${user_id}`;
         await mutate(userProfileKey);
       } else {
-        toast.error(res.message);
+        toast.error(res.message || 'Something went wrong');
       }
 
     } catch (err) {
+      console.error("Error occurred while commenting:", err);
       toast.error("Error occurred while commenting");
-      console.error(err);
     }
   };
 
