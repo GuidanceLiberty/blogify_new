@@ -2,7 +2,13 @@ import axios from "axios";
 import { useFormik } from "formik";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { FaCubes, FaFeather, FaFeatherAlt, FaFileAlt, FaImage } from "react-icons/fa";
+import {
+  FaCubes,
+  FaFeather,
+  FaFeatherAlt,
+  FaFileAlt,
+  FaImage,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { postSchema } from "../../schema";
 import { Loader } from "lucide-react";
@@ -14,52 +20,23 @@ const CreatePostForm = () => {
 
   const URL = process.env.REACT_APP_BASE_URL;
   const navigate = useNavigate();
+
   const fetcher = (...args) =>
     fetch(...args, {
       headers: { Authorization: `Bearer ${user.token}` },
-    }).then((Response) => Response.json());
-  const { data: allCategories, mutate } = useSWR(`${URL}/categories`, fetcher);
+    }).then((res) => res.json());
 
-  const [photo, setPhoto] = useState("");
+  const { data: allCategories } = useSWR(`${URL}/categories`, fetcher);
+
   const [file, setFile] = useState(null);
-
-  const onSubmit = async (values, actions) => {
-    handleUpload();
-
-    try {
-      const response = await fetch(`${URL}/posts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify({ ...values, photo }),
-      });
-      const res = await response.json();
-      if (res.success) {
-        toast.success(res.message);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        actions.resetForm();
-        return navigate("/");
-      } else {
-        toast.error(res.message);
-      }
-    } catch (error) {
-      toast.error("Error occurred while publishing post : ", error.message);
-      console.log("Error occurred while publishing post : ", error.message);
-    }
-  };
 
   // UPLOAD PHOTO
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    setPhoto(e.target.value);
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      return;
-    }
+    if (!file) return null;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -70,8 +47,41 @@ const CreatePostForm = () => {
       });
 
       toast.success(res.data.message);
+      return res.data.path; // Example: "/uploads/filename.jpg"
     } catch (err) {
       toast.error("Upload failed");
+      return null;
+    }
+  };
+
+  const onSubmit = async (values, actions) => {
+    const uploadedImagePath = await handleUpload();
+
+    try {
+      const response = await fetch(`${URL}/posts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          ...values,
+          photo: uploadedImagePath || "", // Use the uploaded file path
+        }),
+      });
+
+      const res = await response.json();
+      if (res.success) {
+        toast.success(res.message);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        actions.resetForm();
+        return navigate("/");
+      } else {
+        toast.error(res.message);
+      }
+    } catch (error) {
+      toast.error("Error occurred while publishing post.");
+      console.log("Post Error:", error.message);
     }
   };
 
@@ -106,20 +116,19 @@ const CreatePostForm = () => {
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col mb-6 w-full">
               <label htmlFor="title" className="label">
-                <FaFeather />{" "}
+                <FaFeather />
                 <span>
-                  {" "}
                   Title <span className="req">*</span>
                 </span>
-                {touched.title && errors.title ? (
+                {touched.title && errors.title && (
                   <p className="form-error">{errors.title}</p>
-                ) : null}
+                )}
               </label>
               <input
                 type="text"
                 id="title"
                 placeholder="Enter Title"
-                className={`placeholder:text-[#bec6d3] placeholder:font-light text-input-reg `}
+                className="placeholder:text-[#bec6d3] placeholder:font-light text-input-reg"
                 value={values.title}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -128,20 +137,19 @@ const CreatePostForm = () => {
 
             <div className="flex flex-col mb-6 w-full">
               <label htmlFor="body" className="label">
-                <FaFileAlt />{" "}
+                <FaFileAlt />
                 <span>
-                  {" "}
                   Body <span className="req">*</span>
                 </span>
-                {touched.body && errors.body ? (
+                {touched.body && errors.body && (
                   <p className="form-error">{errors.body}</p>
-                ) : null}
+                )}
               </label>
               <textarea
                 rows={2}
                 id="body"
                 placeholder="Enter body"
-                className={`placeholder:text-[#bec6d3] placeholder:font-light text-input-reg `}
+                className="placeholder:text-[#bec6d3] placeholder:font-light text-input-reg"
                 value={values.body}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -150,49 +158,46 @@ const CreatePostForm = () => {
 
             <div className="flex flex-col mb-6 w-full">
               <label htmlFor="categories" className="label">
-                <FaCubes />{" "}
+                <FaCubes />
                 <span>
-                  {" "}
                   Category <span className="req">*</span>
                 </span>
-                {touched.categories && errors.categories ? (
+                {touched.categories && errors.categories && (
                   <p className="form-error">{errors.categories}</p>
-                ) : null}
+                )}
               </label>
               <select
                 id="categories"
-                className={`placeholder:text-[#bec6d3] placeholder:font-light text-input-reg`}
+                className="placeholder:text-[#bec6d3] placeholder:font-light text-input-reg"
                 value={values.categories}
                 onChange={handleChange}
                 onBlur={handleBlur}
               >
-                <option value=""></option>
-                {allCategories &&
-                  allCategories?.data.map((category) => (
-                    <option key={category?._id} value={category?._id}>
-                      {category?.name}
-                    </option>
-                  ))}
+                <option value="">Select a category</option>
+                {allCategories?.data?.map((category) => (
+                  <option key={category?._id} value={category?._id}>
+                    {category?.name}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="flex flex-col mb-6 w-full">
               <label htmlFor="photo" className="label">
-                {" "}
-                <FaImage /> Profile Photo{" "}
+                <FaImage /> Upload Image
               </label>
               <input
                 type="file"
                 id="photo"
                 accept=".png, .jpeg, .jpg, .gif"
-                className={`placeholder:text-dark-light text-input-reg`}
+                className="placeholder:text-dark-light text-input-reg"
                 onChange={handleFileChange}
               />
             </div>
 
-            <button type="submit" className="btn-dark-full " disabled={isSubmitting}>
+            <button type="submit" className="btn-dark-full" disabled={isSubmitting}>
               {isSubmitting ? (
-                <Loader className="animate/spin" />
+                <Loader className="animate-spin" />
               ) : (
                 <span className="flex items-center gap-2">
                   <FaFeatherAlt size={12} /> <span> Create Post </span>

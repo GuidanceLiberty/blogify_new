@@ -10,10 +10,12 @@ import useSWR, { mutate } from 'swr';
 const Navbar = ({ showMenu, setShowMenu }) => {
   const URL = process.env.REACT_APP_BASE_URL;
   const UPLOAD_URL = process.env.REACT_APP_UPLOAD_URL;
-
-  const user = JSON.parse(localStorage.getItem('user'));
-  const profilePic = user?.photo ? `${UPLOAD_URL}/${user.photo}` : null;
   const navigate = useNavigate();
+
+  // Get user from localStorage
+  let user = localStorage.getItem('user');
+  user = user ? JSON.parse(user) : null;
+  const profilePic = user?.photo ? `${UPLOAD_URL}/${user.photo}` : null;
 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
@@ -28,10 +30,10 @@ const Navbar = ({ showMenu, setShowMenu }) => {
     }
   };
 
-  // Notifications
+  // Fetch notifications
   const fetcher = (url) =>
     fetch(url, {
-      headers: { Authorization: `Bearer ${user?.token}` },
+      headers: user ? { Authorization: `Bearer ${user.token}` } : {},
     }).then((res) => res.json());
 
   const { data } = useSWR(
@@ -74,7 +76,7 @@ const Navbar = ({ showMenu, setShowMenu }) => {
       <nav className='flex justify-between items-center px-1 lg:px-[5rem]'>
 
         {/* 🔗 Logo */}
-        <NavLink to={`/`} className="logo py-3 flex items-center gap-1">
+        <NavLink to="/" className="logo py-3 flex items-center gap-1">
           <img src={logo} alt="logo" className='w-8 h-7' />
           <span className='font-semibold text-lg'>BLOGIFY</span>
         </NavLink>
@@ -89,21 +91,25 @@ const Navbar = ({ showMenu, setShowMenu }) => {
           ))}
 
           {/* 🔔 Bell */}
-          <div className="relative cursor-pointer" onClick={handleBellClick}>
-            <FaBell className='text-gray-600 text-[18px]' />
-            {unreadCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-[6px] py-[1px] rounded-full">
-                {unreadCount}
-              </span>
-            )}
-          </div>
+          {user && (
+            <div className="relative cursor-pointer" onClick={handleBellClick}>
+              <FaBell className='text-gray-600 text-[18px]' />
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-[6px] py-[1px] rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* 👤 Profile */}
-          <div className="cursor-pointer" onClick={handleProfileClick}>
-            {profilePic
-              ? <img src={profilePic} className='w-5 h-5 rounded-full object-cover' alt="profile" />
-              : <FaUserTie />}
-          </div>
+          {user && (
+            <div className="cursor-pointer" onClick={handleProfileClick}>
+              {profilePic
+                ? <img src={profilePic} className='w-5 h-5 rounded-full object-cover' alt="profile" />
+                : <FaUserTie />}
+            </div>
+          )}
 
           {/* 📱 Hamburger */}
           <div className="md:hidden cursor-pointer" onClick={() => setShowMenu(!showMenu)}>
@@ -113,10 +119,10 @@ const Navbar = ({ showMenu, setShowMenu }) => {
       </nav>
 
       {/* 👤 User Dropdown */}
-      {showUserDropdown && (
+      {showUserDropdown && user && (
         <div className="mobile-menu-div">
-          <NavLink to={`profile/${user?._id}`} className="flex items-center gap-2">
-            <FaUserAlt className='text-primary' /> {user?.name}
+          <NavLink to={`/profile/${user._id}`} className="flex items-center gap-2">
+            <FaUserAlt className='text-primary' /> {user.name}
           </NavLink>
           <NavLink to="/notifications" className="flex items-center gap-2">
             <FaBell className='text-primary' /> Notifications
@@ -128,7 +134,7 @@ const Navbar = ({ showMenu, setShowMenu }) => {
       )}
 
       {/* 🔔 Notification Dropdown */}
-      {showNotificationDropdown && (
+      {showNotificationDropdown && user && (
         <div className="absolute top-[3.5rem] right-5 w-[280px] bg-white shadow-md rounded-md z-40 max-h-[300px] overflow-y-auto">
           <div className="p-3 border-b font-semibold">Notifications</div>
           {notifications.length === 0 ? (
