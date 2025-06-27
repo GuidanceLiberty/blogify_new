@@ -50,7 +50,7 @@ export const signup = async (req, res) => {
 
     await user.save();
     generateTokenSetCookie(res, user._id);
-    await sendVerificationEmail(email, name, verificationToken);
+    // await sendVerificationEmail(email, name, verificationToken);
 
     const { password: _, verificationToken: __, ...safeUser } = user._doc;
 

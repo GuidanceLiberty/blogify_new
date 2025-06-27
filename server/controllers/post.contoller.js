@@ -50,6 +50,10 @@ export const createPost = async (req, res) => {
     const post = new Post({ title, slug, body, categories, photo: image, author });
     await post.save();
 
+    await User.findByIdAndUpdate(author, {
+      $inc: { noOfPosts: 1 }
+    });
+
     res.status(201).json({ success: true, message: "Post created successfully", post });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -103,6 +107,7 @@ export const getUserPosts = async (req, res) => {
   const userId = req.params.user_id;
   const parseUrl = url.parse(req.url, true);
   const query = parseUrl.query;
+
   try {
     let limit = query.limit || 100;
 
@@ -128,7 +133,10 @@ export const updatePost = async (req, res) => {
   const { title, body, categories, photo, author } = req.body;
 
   const slug = title.toLowerCase().replace(/\s+/g, "-");
-  const cate_id = new ObjectId(categories);
+  const cate_id = Array.isArray(categories)
+    ? categories.map(id => new ObjectId(id))
+    : [new ObjectId(categories)];
+
   const image = photo?.startsWith("/uploads/") ? photo.replace("/uploads/", "") : photo;
 
   const { error } = postSchema.validate({ title, slug, body, categories, author });
@@ -185,11 +193,17 @@ export const likeUnlikePost = async (req, res) => {
     let liked = false;
     if (!post.likes.includes(userId)) {
       await post.updateOne({ $addToSet: { likes: userId } });
-      await user.updateOne({ $addToSet: { likes: postId } });
+      await user.updateOne({
+        $addToSet: { likes: postId },
+        $inc: { noOfLikedPosts: 1 }
+      });
       liked = true;
     } else {
       await post.updateOne({ $pull: { likes: userId } });
-      await user.updateOne({ $pull: { likes: postId } });
+      await user.updateOne({
+        $pull: { likes: postId },
+        $inc: { noOfLikedPosts: -1 }
+      });
     }
 
     return res.status(200).json({ success: true, message: liked ? "Post liked" : "Post unliked" });

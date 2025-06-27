@@ -7,7 +7,7 @@ import {
   getPosts,
   getSearchPosts,
   getSinglePost,
-  getUserPosts, // ✅ IMPORTED NEW CONTROLLER
+  getUserPosts,
   likeUnlikePost,
   updatePost
 } from "../controllers/post.contoller.js";
@@ -15,19 +15,17 @@ import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
 
-// ✅ Public route
+// ✅ Public routes (no auth required)
 router.get('/search', getSearchPosts);
-
-// ✅ This must be above `/:slug` to avoid being overridden
-router.get('/user-posts/:user_id', getUserPosts); 
+router.get('/user-posts/:user_id', getUserPosts); // ✅ MUST come before '/:slug'
+router.get('/single-post/:slug', getSinglePost);  // ✅ Also before '/:slug'
+router.get('/:slug', getPost);                    // ⚠️ Catch-all route — always last of public routes
 
 // ✅ Authenticated routes
 router.use(verifyToken);
 
 router.get('/', getPosts);
 router.post('/', createPost);
-router.get('/:slug', getPost);
-router.get('/single-post/:slug', getSinglePost);
 router.put('/:slug', updatePost);
 router.delete('/:slug', deletePost);
 router.post('/like-and-unlike-post', likeUnlikePost);
